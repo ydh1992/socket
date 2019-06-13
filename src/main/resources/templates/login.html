@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <link rel="icon" href="data:image/ico;base64,aWNv">
+    <link rel="stylesheet" th:href="@{/layui/css/layui.css}">
+</head>
+<body>
+<div style="margin: 30px;">
+    <fieldset class="layui-elem-field index-button" style="margin-top: 30px;">
+        <legend>登录</legend>
+        <div>
+            <form class="layui-form loginform" action="/im/login"  method="post">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">uuID</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="uuid" lay-verify="title" autocomplete="off" class="layui-input laccount">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <label class="layui-form-label">unionid</label>
+                    <div class="layui-input-block">
+                        <input type="text" name="unionid" lay-verify="required"  autocomplete="off" class="layui-input lpwd">
+                    </div>
+                </div>
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button class="layui-btn" lay-submit="" lay-filter="login">立即登录</button>
+                    </div>
+                </div>
+                <input type="hidden" name="ownerOrCompany" value="0">
+            </form>
+        </div>
+    </fieldset>
+</div>
+</body>
+</html>

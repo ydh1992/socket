@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>layim</title>
+    <link rel="icon" href="data:image/ico;base64,aWNv">
+    <link rel="stylesheet" th:href="@{/layui/css/layui.css}">
+    <script type="text/javascript" th:src="@{/js/util.js}"></script>
+</head>
+<body>
+<script th:src="@{/layui/layui.js}"></script>
+<!--搜狐获取ip-->
+<script src="http://pv.sohu.com/cityjson?ie=utf-8"></script>
+<script type="text/javascript">
+    //一般直接写在一个js文件中
+    layui.use(['layer', 'jquery'], function () {
+        var uuid = [[${user.uuid}]];
+        var groupId = [[${user.type}]];
+        var name = "[[${user.name}]]";
+        var layer = layui.layer
+            , $ = layui.jquery;
+        //拉取离线消息
+        var showOfflineMsg = function (layim) {
+            $.ajax({
+                type: "get",
+                url: "getOfflineMsg",
+                async: true,
+                data: {"uuid":uuid},
+                success: function (data) {
+                    if (data != null && data.length > 0) {
+                        var dataObj = eval("(" + data + ")");
+                        if (dataObj != null && dataObj.length > 0) {
+                            for (var i = 0; i < dataObj.length; i++) {
+                                layim.getMessage({
+                                    username: dataObj[i].sendusername
+                                    , avatar: dataObj[i].avatar + "?" + new Date().getTime()
+                                    , id: dataObj[i].senduser
+                                    , type: "friend"
+                                    , content: dataObj[i].content
+                                    , timestamp: dataObj[i].createdate
+                                });
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        layui.use('layim', function (layim) {
+            //基础配置
+            layim.config({
+                init: {
+                    url: 'getUsers' //接口地址（返回的数据格式见layim文档）
+                    , type: 'get' //默认get，一般可不填
+                    , data: {"uuid":uuid} //额外参数
+                }, //获取主面板列表信息
+                title: "我的IM"
+                , notice: true,
+                //获取群员接口  请自行实现获取群用户
+                members: {
+                    url: '' //接口地址
+                    , type: 'get' //默认get，一般可不填
+                    , data: {} //额外参数
+                },
+                //上传图片接口（返回的数据格式见下文）
+                uploadImage: {
+                    url: 'imgUpload' //接口地址
+                    , type: 'post'
+                    , data: {"uuid":uuid}
+                },
+                //上传文件接口（返回的数据格式见下文）
+                uploadFile: {
+                    url: 'fileUpload' //接口地址
+                    , type: 'post' //默认post
+                    , data: {"uuid":uuid}
+                },
+                isAudio: true, //开启聊天工具栏音频
+                isVideo: true, //开启聊天工具栏视频
+                brief: false,
+                min: false,
+                isgroup: false,
+                voice: false,
+                copyright: true
+                , chatLog: 'historyMessage' //聊天记录页面地址，若不开启，剔除该项即可
+            });
+            layim.on('ready', function (res) {
+                //取得离线消息
+                showOfflineMsg(layim)
+                layim.setFriendStatus(uuid, 'online');
+            });
+            //监听发送消息
+            layim.on('sendMessage', function (data) {
+                var To = data.to;
+                var my = data.mine;
+                var message = my.content;
+                if ($.trim(uuid) == '') {
+                    return;
+                }
+                if ($.trim(message) == '') {
+                    layer.msg("请输入要发送的消息!");
+                    return;
+                }
+                if (getKeyword(message)) {
+                    layer.msg("你输入的有敏感字符！");
+                    return;
+                }
+                if (socket.readyState == WebSocket.OPEN) {
+                    //判断是发送好友消息还是群消息
+                    if (To.type == "friend") {
+                        sedMessage(uuid,To.id,message,type.FRIEND)
+                        // layim.setChatStatus('<span style="color:#FF5722;">对方正在输入。。。</span>');
+                    }
+                }
+            });
+
+            layim.on('online', function (status) {
+                //console.logs(status); //获得online或者hide
+                //websocket发送在线或离线消息给好友
+            });
+            var initEventHandle = function () {
+                //收到消息后
+                socket.onmessage = function (event) {
+                    var msg = eval("("+event+")");
+                    var msgCon = msg.data;
+                    var cache = layui.layim.cache();
+                    var local = layui.data('layim')[cache.mine.id];
+                    var username = "", avatar = "", friend = false;
+                    layui.each(cache.friend, function (index1, item1) {
+                        layui.each(item1.list, function (index, item) {
+                            if (item.id == msgCon.sId) {
+                                username = item.username;
+                                avatar = item.avatar;
+                                return friend = true;
+                            }
+                        });
+                        if (friend) return true;
+                    });
+                    //显示非自身消息
+                    if (msgCon.sId != uuid) {
+                        if (msg.cmd == cmd.ONLINE) {
+                            layer.msg(username + "上线了！");
+                            layim.setFriendStatus(msgCon.sId, 'online');
+                        } else if (msg.cmd == cmd.OFFLINE) {
+                            layer.msg(username + "已下线！");
+                            layim.setFriendStatus(msgCon.sId, 'offline');
+                        } else {
+                            var time = (new Date(msgCon.timestamp)).getTime();
+                            if (msg.type ==type.FRIEND) {
+                                layim.getMessage({
+                                    username: username
+                                    , avatar: avatar + "?" + new Date().getTime()
+                                    , id: msgCon.sId
+                                    , type: "friend"
+                                    , content: msgCon.msg
+                                    , timestamp: time
+                                });
+                            }
+                        }
+                    }
+                };
+                //连接后
+                socket.onopen = function (event) {
+                    var browser = BrowserUtil.info();
+                    //{"cip": "192.168.1.1", "cid": "CN", "cname": "CHINA"};
+                    layer.msg(onopen(uuid,groupId,browser.name,browser.version,returnCitySN.cip));
+                    socket.send(onopen(uuid,groupId,browser.name,browser.version,returnCitySN.cip));
+                };
+                //连接关闭
+                socket.onclose = function (event) {
+                    layim.setFriendStatus(uuid, 'offline');
+                    layer.confirm('您已下线，重新上线?', function (index) {
+                        reconnect(websocketurl, initEventHandle);
+                        layer.close(index);
+                    });
+                    //{"cip": "192.168.1.1", "cid": "CN", "cname": "CHINA"};
+                    socket.send(onopen(uuid,groupId,null,null,returnCitySN.cip));
+                };
+                socket.onerror = function () {
+                    reconnect(websocketurl, initEventHandle);
+                };
+            }
+            //拉取关键字接口
+            var keywordJson=null;
+            var getJson = function () {
+                $.getJSON('./json/keyword.json', function(json){
+                    keywordJson=json
+                });
+                return keywordJson;
+            }
+            //判断发送数据是否包含特殊字符
+            function getKeyword(msg) {
+                if(keywordJson==null){
+                    keywordJson=getJson();
+                }
+                if (keywordJson != null && keywordJson.length > 0) {
+                    layui.each(keywordJson, function (index, item) {
+                        var n = msg.search(item);
+                        if (n >= 0) {
+                            //过滤关键字
+                            return true;
+                        }
+                    });
+                }
+                return false;
+            }
+        });
+    });
+</script>
+</body>
+</html>

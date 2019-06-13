@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>单聊</title>
+    <link rel="icon" href="data:image/ico;base64,aWNv">
+    <link rel="stylesheet" th:href="@{/layui/css/layui.css}">
+    <!--[if (IE 6)|(IE 7)|(IE 8)|(IE 9)]>    <![endif]-->
+</head>
+<body>
+<script th:src="@{/layui/layui.js/}"></script>
+<script th:src="@{/js/util.js}"></script>
+<script>
+    var uuid = [[${user.uuid}]];
+    var groupId = [[${user.type}]];
+    var name = "[[${user.name}]]";
+    //一般直接写在一个js文件中
+    layui.use(['layer', 'jquery'], function () {
+        var layer = layui.layer, $ = layui.jquery;
+        layui.use('layim', function (layim) {
+            //基础配置
+            layim.config({
+                //上传图片接口（返回的数据格式见下文）
+                uploadImage: {
+                    url: 'im/imgUpload' //接口地址
+                    , type: 'post'
+                    , data: {"uuid":uuid}
+                },
+                //上传文件接口（返回的数据格式见下文）
+                uploadFile: {
+                    url: 'im/fileUpload' //接口地址
+                    , type: 'post' //默认post
+                    , data: {"uuid":uuid}
+                },
+                brief: true //简约模式，不显示主面板
+            });
+            //自定义窗口
+            layim.chat({
+                name: '张三' //名称
+                ,type: 'friend' //聊天类型
+                ,avatar: 'http://tp1.sinaimg.cn/5619439268/180/40030060651/1' //头像
+                ,id: 11111 //好友id
+            })
+            //监听发送消息
+            layim.on('sendMessage', function (data) {
+                var To = data.to;
+                var my = data.mine;
+                var message = my.content;
+                if ($.trim(uuid) == '') {
+                    return;
+                }
+                if ($.trim(message) == '') {
+                    layer.msg("请输入要发送的消息!");
+                    return;
+                }
+                if (getKeyword(message)) {
+                    layer.msg("你输入的有敏感字符！");
+                    return;
+                }
+                if (socket.readyState == WebSocket.OPEN) {
+                    //判断是发送好友消息还是群消息
+                    if (To.type == "friend") {
+                        sedMessage(uuid,To.id,message,type.FRIEND)
+                        layim.setChatStatus('<span style="color:#FF5722;">对方正在输入。。。</span>');
+                    }
+                }
+            });
+            var initEventHandle = function () {
+                //收到消息后
+                socket.onmessage = function (event) {
+                    var msg = eval("("+event+")");
+                    var msgCon = msg.data;
+                    var cache = layui.layim.cache();
+                    var local = layui.data('layim')[cache.mine.id];
+                    var username = "", avatar = "", friend = false;
+                    layui.each(cache.friend, function (index1, item1) {
+                        layui.each(item1.list, function (index, item) {
+                            if (item.id == msgCon.sId) {
+                                username = item.username;
+                                avatar = item.avatar;
+                                return friend = true;
+                            }
+                        });
+                        if (friend) return true;
+                    });
+                    //显示非自身消息
+                    if (msgCon.sId != uuid) {
+                        if (msg.cmd == cmd.ONLINE) {
+                            layer.msg(username + "上线了！");
+                            layim.setFriendStatus(msgCon.sId, 'online');
+                        } else if (msg.cmd == cmd.OFFLINE) {
+                            layer.msg(username + "已下线！");
+                            layim.setFriendStatus(msgCon.sId, 'offline');
+                        } else {
+                            var time = (new Date(msgCon.timestamp)).getTime();
+                            if (msg.type ==type.FRIEND) {
+                                layim.getMessage({
+                                    username: username
+                                    , avatar: avatar + "?" + new Date().getTime()
+                                    , id: msgCon.sId
+                                    , type: "friend"
+                                    , content: msgCon.msg
+                                    , timestamp: time
+                                });
+                            }
+                        }
+                    }
+                };
+                //连接后
+                socket.onopen = function (event) {
+                    var browser = BrowserUtil.info();
+                    //{"cip": "192.168.1.1", "cid": "CN", "cname": "CHINA"};
+                    socket.send(onopen(uuid,groupId,browser.name,browser.version,returnCitySN.cip));
+                };
+                //连接关闭
+                socket.onclose = function (event) {
+                    layim.setFriendStatus(uuid, 'offline');
+                    layer.confirm('您已下线，重新上线?', function (index) {
+                        reconnect(websocketurl, initEventHandle);
+                        layer.close(index);
+                    });
+                    //{"cip": "192.168.1.1", "cid": "CN", "cname": "CHINA"};
+                    socket.send(onopen(uuid,groupId,null,null,returnCitySN.cip));
+                };
+                socket.onerror = function () {
+                    reconnect(websocketurl, initEventHandle);
+                };
+            }
+            createWebSocket(websocketurl, initEventHandle);
+        });
+        //拉取关键字接口
+        var getJson = function () {
+            var keyword = null;
+            $.ajax({
+                type: "get",
+                url: "js/json/keyword.json",
+                async: false,
+                success: function (data) {
+                    keyword = data;
+                }
+            });
+            return keyword;
+        }
+        //判断发送数据是否包含特殊字符
+        function getKeyword(msg) {
+            var keyword = getJson();
+            if (keyword != null && keyword.length > 0) {
+                for (var i = 0; i < keyword.length; i++) {
+                    var n = msg.search(keyword[i]);
+                    if (n >= 0) {
+                        //过滤关键字
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    });
+</script>
+</body>
+</html>
