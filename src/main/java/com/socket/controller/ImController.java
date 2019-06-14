@@ -1,5 +1,6 @@
 package com.socket.controller;
 
+import com.socket.pojo.Instancemessageday;
 import com.socket.service.*;
 import com.socket.util.*;
 import net.sf.json.JSONArray;
@@ -9,22 +10,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.util.ResourceUtils;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.yeauty.pojo.Session;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Map;
 
-
 @Controller
 @RequestMapping("/im")
+@SessionAttributes(names = {"uuid","name"})
 public class ImController{
+	@Autowired
+	private FileUtils fileUtils;
 	@Autowired
 	private CodeService codeService;
 	@Autowired
@@ -43,7 +44,7 @@ public class ImController{
 	public String login(@RequestParam String uuid, @RequestParam String unionid, @RequestParam String ownerOrCompany, HttpServletRequest request
 	, ModelMap model){
 		if(StringUtils.isBlank(uuid)&& StringUtils.isBlank(unionid)&& StringUtils.isBlank(ownerOrCompany)){
-			return null;
+			return "login";
 		}
 		//判断是否登录
 		String key=String.format(Constant.REDIS_USER_KEY,uuid,unionid);
@@ -55,7 +56,9 @@ public class ImController{
 		Map<String,Object> map=DataUtil.mapOf("uuid",uuid,"unionid",unionid,"name",json.getString("name"),"type",ownerOrCompany);
 		request.getSession().setAttribute(uuid,map);
 		model.put("user",map);
-		return "test";
+		model.put("uuid",uuid);
+		model.put("name",json.getString("name"));
+		return "layim";
 	}
 
 	/** 
@@ -63,15 +66,15 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/getUsers")
 	@ResponseBody
-	public Object getAllUser(@RequestParam String uuid, HttpServletRequest request) throws Exception{
+	public Object getAllUser(HttpSession session){
 		//获取用户分组 及用户
 		JSONArray array= JSONArray.fromObject(Constant.GROUP);
 		//个人
-		List<Map<String, Object>> userList=authUserService.selectAllList(uuid);
+		List<Map<String, Object>> userList=authUserService.selectAllList(session.getAttribute("uuid").toString());
 		//公司
-		List<Map<String, Object>> orgList=authOrgService.selectAllList(uuid);
+		List<Map<String, Object>> orgList=authOrgService.selectAllList(session.getAttribute("uuid").toString());
 		//获取已登录用户，添加登录状态
-		Map<String, Session> sessions=WebSocketController.sessionMap;
+		Map<String, Session> sessions= WebSocket.sessionMap;
 		sessions.keySet().stream().forEach(o->{
 			userList.stream().forEach(e->{
 				e.put("avatar", Constant.USER_AVATAR);
@@ -102,9 +105,8 @@ public class ImController{
 			}
 		});
 		//暂时没有群组
-		Map<String,Object> map= (Map<String, Object>) request.getSession().getAttribute(uuid);
-		return Result.putValue(DataUtil.mapOf("mine", DataUtil.mapOf("id",uuid,"username",map.get("name"),"status","online",
-				"avatar", Constant.USER_AVATAR), "friend", array));
+		return Result.putValue(DataUtil.mapOf("mine", DataUtil.mapOf("id",session.getAttribute("uuid").toString(),
+				"username",session.getAttribute("name").toString(),"status","online","avatar", Constant.USER_AVATAR), "friend", array));
 	}
 	
 	
@@ -113,13 +115,8 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/imgUpload", method = RequestMethod.POST)
 	@ResponseBody
-	public Object uploadImgFile(@RequestParam MultipartFile file, HttpServletRequest request,@RequestParam String uuid){
-
-		Session session=WebSocketController.sessionMap.get(uuid);
-		if(session==null){
-			return null;
-		}
-		return  JSONObject.fromObject(FileUtils.uploadFileToService(file, request,1));
+	public Object uploadImgFile(@RequestParam MultipartFile file){
+		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(file,1)));
 	}
 	
 	/** 
@@ -127,12 +124,8 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/fileUpload",method = RequestMethod.POST)
 	@ResponseBody
-	public Object uploadAllFile(@RequestParam MultipartFile file, HttpServletRequest request,@RequestParam String uuid){
-		Session session=WebSocketController.sessionMap.get(uuid);
-		if(session==null) {
-			return null;
-		}
-		return  JSONObject.fromObject(FileUtils.uploadFileToService(file,request,2));
+	public Object uploadAllFile(@RequestParam MultipartFile file){
+		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(file,2)));
 	}
 
 	/**
@@ -144,34 +137,39 @@ public class ImController{
 		Map<String,Object> map= (Map<String, Object>) request.getSession().getAttribute(uuid);
 		List<Map<String, Object>> list=instancemessagedayService.getOfflineMessageList(uuid,Integer.valueOf(map.get("type").toString()));
 		if(list!=null){
-			return JSONArray.fromObject(list);
+			return Result.putValue(JSONArray.fromObject(list));
+		}
+		return Result.putValue();
+	}
+
+	@RequestMapping(value = "/chatLog")
+	public String chatlog(String id,ModelMap map,HttpSession session) {
+		if (DataUtil.isNotBlank(id)) {
+			int size = instancemessagelogService.countLog(DataUtil.mapOf("sendUserId", session.getAttribute("uuid"), "recUserId", id));
+			map.put("size",size);
+			return "chatlog";
 		}
 		return null;
-	} 
+	}
 	
 	/**
 	 * 聊天记录
 	 */
-	@RequestMapping(value = "/historyMessageAjax",method = RequestMethod.POST)
+	@RequestMapping(value = "/chatLogs",method = RequestMethod.POST)
 	@ResponseBody
-	public Object userHistoryMessages(HttpServletRequest request,Integer skipToPage,@RequestParam(defaultValue = "10") Integer pageSize
-			,String uuid){
-		Map<String,Object> session= (Map<String, Object>) request.getSession().getAttribute(uuid);
-		Map<String,Object> map =DataUtil.mapOf("page",skipToPage>0?skipToPage*pageSize:0,"limit",pageSize,"types",Integer.valueOf(session.get("type").toString()),
-				"sendUserId",uuid,"recUserId", Long.parseLong(request.getParameter("id")));
-		return Result.putValue(instancemessagelogService.selectLogList(map));
-	}
-	
-	/**
-	 * 聊天记录页面
-	 */
-	@RequestMapping(value = "/historyMessage", method = RequestMethod.GET)
-	public String userHistoryMessagesPage(HttpServletRequest request,Integer skipToPage,@RequestParam(defaultValue = "10") Integer pageSize
-			,@RequestParam String uuid,ModelMap model){
-		int totalsize = instancemessagelogService.countLog(DataUtil.mapOf("sendUserId",uuid, "recUserId", Long.parseLong(request.getParameter("id"))));
-		model.addAttribute("pager", DataUtil.mapOf("pageNo",skipToPage>0?skipToPage*pageSize:0,"pageSize",pageSize
-				,"totalSize",totalsize));
-		return "historymessage";
+	public Object chatlog(HttpServletRequest request,@RequestParam(defaultValue = "0")Integer page,String id,HttpSession session){
+		if(!DataUtil.isNotBlank(id)){
+			return Result.putValue(1,"缺少参数");
+		}
+		Map<String,Object> user= (Map<String, Object>) request.getSession().getAttribute(session.getAttribute("uuid").toString());
+		Map<String,Object> map =DataUtil.mapOf("offset",page>0?page*Constant.PAGE_SIZE:0,"limit",Constant.PAGE_SIZE,
+				"sendUserId",session.getAttribute("uuid"),"recUserId", Long.parseLong(id));
+		//查询好友名称
+		Map<String,Object> name=authOrgService.selectUser(id);
+		if(name==null){
+			name=authUserService.selectUser(id);
+		}
+		return Result.putValue(DataUtil.mapOf("list",instancemessagelogService.selectLogList(map),"recName",name!=null?name.get("username"):null));
 	}
 
 	/**
@@ -179,27 +177,59 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/getKeyword")
 	@ResponseBody
-	public Object getKeyword(HttpServletRequest request){
+	public Object getKeyword(){
 		String contextPath = null;
 		try {
-			String serverpath= ResourceUtils.getURL("classpath:static").getPath().replace("%20"," ").replace('/', '\\');
+			String serverpath= ResourceUtils.getURL("classpath:templates").getPath().replace("%20"," ").replace('/', '\\');
 			//从路径字符串中取出工程路径
-			contextPath=serverpath.substring(1)+"//json";
+			contextPath=serverpath.substring(1);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		if(contextPath!=null){
-			FileUtils.createJsonFile(JSONArray.fromObject(codeService.getKeyword()),contextPath,"keyword");
+			fileUtils.createJsonFile(JSONArray.fromObject(codeService.getKeyword()),contextPath,"keyword");
 		}
 		return Result.putValue();
 	}
 
 	/**
-	 * 单聊
+	 *发送系统消息
 	 */
-	@RequestMapping(value = "/sedMsg", method = RequestMethod.POST)
-	public String sedSystemMsg(@RequestParam String content, @RequestParam(defaultValue = Constant.ADMIN_UUID ) String suuid, @RequestParam String ruuid, HttpServletRequest request){
+	@RequestMapping(value = "/sedSystemMsg", method = RequestMethod.POST)
+	@ResponseBody
+	public JSONObject sedSystemMsg(@RequestParam String content, @RequestParam String ruuid){
+		if(!DataUtil.isNotBlank(content,ruuid)){
+			return Result.putValue(1,"缺少参数");
+		}
+		JSONObject data=DataUtil.jsonOf("sId",Constant.ADMIN_UUID,"rId",ruuid,"msg",content,"msgType",Instancemessageday.MSGTYPE_ENUM.SYSTEM.getMsgType());
+		Session session=WebSocket.sessionMap.get(ruuid);
+		if(session!=null){
+			session.sendText(DataUtil.jsonOf("cmd",Constant.CMD_ENUM.MSG.getCmd(),"type",Constant.TYPE_ENUM.FRIEND.getType(),"data",data).toString());
+			data.put("isRead",Instancemessageday.ISREAD_ENUM.YES.getIsRead());
+		}
+		instancemessagedayService.insertSelective(new Instancemessageday(data));
+		return Result.putValue();
+	}
 
+	/**
+	 *单聊
+	 */
+	@RequestMapping(value = "/chat")
+	public String chat(@RequestParam String suuid, @RequestParam String ruuid,@RequestParam Integer ownerOrCompany,ModelMap model){
+		if(DataUtil.isNotBlank(suuid,ruuid,ownerOrCompany)){
+			model.put("uuid",suuid);
+			//标识符  0-个人，1-企业，2-管理员
+			Map<String,Object> map=null;
+			if(ownerOrCompany.equals(Constant.PERSONAL_TYPE)){
+				map=authUserService.selectUser(ruuid);
+			}
+			if(ownerOrCompany.equals(Constant.COMPANY_TYPE)){
+				map=authOrgService.selectUser(ruuid);
+			}
+			if(map!=null&&DataUtil.isNotBlank(map.get("username"))){
+				model.put("user",DataUtil.mapOf("uuid",ruuid,"name",map.get("username").toString(),"avatar",Constant.USER_AVATAR));
+			}
+		}
 		return "chat";
 	}
 

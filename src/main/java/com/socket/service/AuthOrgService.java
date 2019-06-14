@@ -17,4 +17,8 @@ public class AuthOrgService {
 		return authOrgMapper.selectAllList(uuId);
 	}
 
+	public Map<String, Object> selectUser(String uuId) {
+		return authOrgMapper.selectUser(uuId);
+	}
+
 }

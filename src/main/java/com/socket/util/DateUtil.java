@@ -13,6 +13,7 @@ public class DateUtil {
 	public static final String tomorrow = "明天";
 	public static final String[] week = { "日", "一", "二", "三", "四", "五", "六" };
 	public static final String df_day_pattern = "yyyy-MM-dd";
+	public static final String file_day_pattern = "yyyy/MM/dd";
 	public static final String df_month_pattern = "yyyy-MM";
 	public static final String df_pattern = "yyyy-MM-dd HH:mm:ss";
 	public static final String df_minute_pattern = "yyyy-MM-dd HH:mm";

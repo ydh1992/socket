@@ -16,7 +16,6 @@ public class InstancemessagedayService {
 	@Autowired
 	private InstancemessagedayMapper instancemessagedayMapper;
 
-	//添加
 	@Transactional
 	public long insertSelective(Instancemessageday record) {
 		return instancemessagedayMapper.insertSelective(record);

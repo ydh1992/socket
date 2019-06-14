@@ -9,4 +9,6 @@ public interface AuthOrgMapper {
 
 	List<Map<String, Object>> selectAllList(String uuId);
 
+	Map<String, Object> selectUser(String uuId);
+
 }

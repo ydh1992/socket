@@ -1,6 +1,6 @@
 package com.socket;
 
-import com.socket.controller.WebSocketController;
+import com.socket.controller.WebSocket;
 import com.socket.interceptor.LoginInterceptor;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -24,7 +24,7 @@ public class Application extends WebMvcConfigurationSupport {
         SpringApplication app = new SpringApplication(Application.class);
         ConfigurableApplicationContext context = app.run(args);
         //解决WebSocket不能注入的问题
-        WebSocketController.setApplicationContext(context);
+        WebSocket.setApplicationContext(context);
     }
 
     /***
@@ -41,8 +41,8 @@ public class Application extends WebMvcConfigurationSupport {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginInterceptor()).addPathPatterns("/im/**")
-                .excludePathPatterns("/im/login")
-                .excludePathPatterns("/im/getKeyword");
+                .excludePathPatterns("/im/login").excludePathPatterns("/im/getKeyword")
+                .excludePathPatterns("/im/chat");
         super.addInterceptors(registry);
     }
 
@@ -54,7 +54,8 @@ public class Application extends WebMvcConfigurationSupport {
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/resources/")
                 .addResourceLocations("classpath:/static/")
-                .addResourceLocations("classpath:/templates/");
+                .addResourceLocations("classpath:/templates/")
+                .addResourceLocations("classpath:/upload/");
         super.addResourceHandlers(registry);
     }
     /**

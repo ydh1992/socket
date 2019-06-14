@@ -13,9 +13,12 @@ public class AuthUserService {
 	@Autowired
 	private AuthUserMapper authUserMapper;
 
-	//用户uuid和用户类型，查询所在分类的用户数据
+	/**用户uuid和用户类型，查询所在分类的用户数据*/
 	public List<Map<String, Object>> selectAllList(String uuId) {
 		return authUserMapper.selectAllList(uuId);
 	}
 
+	public Map<String, Object> selectUser(String uuId) {
+		return authUserMapper.selectUser(uuId);
+	}
 }

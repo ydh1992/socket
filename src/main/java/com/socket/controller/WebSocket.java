@@ -2,12 +2,10 @@ package com.socket.controller;
 
 
 import com.socket.pojo.Instancemessageday;
-import com.socket.service.AuthUserService;
 import com.socket.service.InstancemessagedayService;
 import com.socket.util.Constant;
 import com.socket.util.DataUtil;
 import com.socket.util.DateUtil;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.timeout.IdleStateEvent;
 import net.sf.json.JSONObject;
 import org.slf4j.Logger;
@@ -34,9 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * */
 @ServerEndpoint(prefix = "netty-websocket")
 @Component
-public class WebSocketController {
+public class WebSocket {
 
-    private  Logger log= LoggerFactory.getLogger(WebSocketController.class);
+    private  Logger log= LoggerFactory.getLogger(WebSocket.class);
 
     /**concurrent包的线程安全Map，用来存放每个客户端对应的MyWebSocket对象。*/
     public static Map<String, Session> sessionMap = new ConcurrentHashMap<String, Session>();
@@ -53,8 +51,6 @@ public class WebSocketController {
     /**当前用户id*/
     private String uuid;
     @Autowired
-    private AuthUserService authUserService;
-    @Autowired
     private InstancemessagedayService instancemessagedayService;
 
     public static void setApplicationContext(ApplicationContext context){
@@ -64,22 +60,14 @@ public class WebSocketController {
      * 连接建立成功调用的方法
      * */
     @OnOpen
-    public void onOpen(Session session, ParameterMap parameterMap, HttpHeaders httpHeaders) {
+    public void onOpen(Session session, ParameterMap parameterMap) {
         onlineUser++;
         this.session = session;
         this.uuid = parameterMap.getParameter("uuid");
-        System.out.println(uuid+"ssssssssssssssssssssssssssssssssssssssssssss"+parameterMap.getParameter("uuid"));
-        System.out.println(uuid+"ssssssssssssssssssssssssssssssssssssssssssss"+parameterMap.getParameter("cmd"));
-        System.out.println(uuid+"ssssssssssssssssssssssssssssssssssssssssssss"+parameterMap.getParameter("groupId"));
-        System.out.println(uuid+"ssssssssssssssssssssssssssssssssssssssssssss"+parameterMap.getParameter("groupIdss"));
-        System.out.println(session);
-        System.out.println(httpHeaders.get("uuid")+"");
         //把自己的信息加入map
         sessionMap.put(this.uuid,session);
         //设置uid
-//        session.setAttribute(key,"uid001");
-        //获取uid
-//        String uid = session.getAttribute(key);
+        session.setAttribute("uuid",uuid);
         //通知在线用户
         sendListMessage(onlineOrOffline(Constant.CMD_ENUM.ONLINE.getCmd(),this.uuid), null);
         log.info("有新连接加入！当前在线人数为：" + onlineUser);
@@ -89,7 +77,7 @@ public class WebSocketController {
      * 连接关闭调用的方法
      * */
     @OnClose
-    public void onClose() {
+    public void onClose(Session session) {
         onlineUser--;
         //通知在线用户
         sendListMessage(onlineOrOffline(Constant.CMD_ENUM.OFFLINE.getCmd(),this.uuid), null);
@@ -106,10 +94,17 @@ public class WebSocketController {
             JSONObject jsonObject = JSONObject.fromObject(message);
             if(jsonObject.getInt("cmd")== Constant.CMD_ENUM.MSG.getCmd()){
                 JSONObject json = JSONObject.fromObject(jsonObject.getJSONObject("data"));
-                json.put("timestamp", DateUtil.nowDate());
-                session.sendText(message.toString());
-                //存储
-                instancemessagedayService.insertSelective(new Instancemessageday(json));
+                if(DataUtil.isNotBlank(json.get("rId"))){
+                    json.put("timestamp", DateUtil.nowDate());
+                    Session rsession=sessionMap.get(json.getString("rId"));
+                    if(rsession!=null){
+                        log.info("发送数据" + message.toString());
+                        rsession.sendText(message.toString());
+                        json.put("isRead",Instancemessageday.ISREAD_ENUM.YES.getIsRead());
+                    }
+                    //存储
+                    instancemessagedayService.insertSelective(new Instancemessageday(json));
+                }
             }
         }
     }
@@ -125,9 +120,6 @@ public class WebSocketController {
      * 当接收到二进制消息时，对该方法进行回调 注入参数的类型:Session、byte[]*/
     @OnBinary
     public void onBinary(Session session, byte[] bytes) {
-        for (byte b : bytes) {
-            System.out.println(b);
-        }
         session.sendBinary(bytes);
     }
 
@@ -155,26 +147,6 @@ public class WebSocketController {
 
     /**
      * 实现服务器主动批量推送
-     *
-     *
-     * 在推送的场景(对多个会话发送一样的消息)时,使用堆外内存能非常简单高效的提升很大的性能(并发越大,和tomcat差距越明显).
-     *
-     *             // 二进制推送 模板代码 (字符串也基本一样)
-     *             // byte[] dataByte  数据
-     *             // sessions 为 List<Session>
-     *             ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(dataByte.length).writeBytes(dataByte);
-     *             try {
-     *                 for (Session session : sessions) {
-     *                     if (session.isWritable()) {
-     *                         session.sendBinary(buf.retainedDuplicate());
-     *                     }
-     *                 }
-     *             } catch (Exception e) {
-     *                 e.printStackTrace();
-     *             } finally {
-     *                 ReferenceCountUtil.release(buf);
-     *             }
-     *
      * */
     public void sendListMessage(JSONObject message, List<Integer> userIds) {
         if (message != null) {
@@ -187,7 +159,12 @@ public class WebSocketController {
                     // 判断是否登录
                     Session ol = sessionMap.get(o.longValue());
                     if (ol!=null) {
+                        json.put("isRead",Instancemessageday.ISREAD_ENUM.YES.getIsRead());
                         ol.sendText(message.toString());
+                    }else{
+                        if(json.containsKey("isRead")){
+                            json.remove("isRead");
+                        }
                     }
                     //过滤非消息类型通知
                     if(message.getInt("cmd")==Constant.CMD_ENUM.MSG.getCmd()){
@@ -199,12 +176,12 @@ public class WebSocketController {
                     sessionMap.get(o).sendText(message.toString());
                     //过滤非消息类型通知
                     if(message.getInt("cmd")==Constant.CMD_ENUM.MSG.getCmd()){
+                        json.put("isRead",Instancemessageday.ISREAD_ENUM.YES.getIsRead());
                         list.add(new Instancemessageday(json));
                     }
                 });
             }
             if (list.size() > 0) {
-//                instancemessagedayService = context.getBean(InstancemessagedayService.class);
                 instancemessagedayService.insertList(list);
             }
         }

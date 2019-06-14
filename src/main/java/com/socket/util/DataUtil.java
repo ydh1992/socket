@@ -305,6 +305,15 @@ public class DataUtil {
 	public static boolean isNotBlank(Object str) {
 		return null != str && StringUtils.isNotBlank(str.toString());
 	}
+	// 字符串不为空
+	public static boolean isNotBlank(Object... str) {
+		for (int i = 0; i <str.length ; i++) {
+			if(null == str[i]||StringUtils.isBlank(str[i].toString())){
+				return false;
+			}
+		}
+		return true;
+	}
 
 	// 获取客户端IP地址
 	public static String getIpAddr(HttpServletRequest request) {

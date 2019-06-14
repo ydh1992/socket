@@ -1,5 +1,6 @@
 package com.socket.pojo;
 
+import com.socket.util.DataUtil;
 import com.socket.util.DateUtil;
 import net.sf.json.JSONObject;
 
@@ -22,12 +23,14 @@ public class Instancemessageday {
 
 	//创建消息对象
 	public Instancemessageday(JSONObject json) {
-		super();
 		this.sendUserId = json.getString("sId");
 		this.recUserId = json.getString("rId");
 		this.context = json.getString("msg");
 		this.msgType = json.getInt("msgType");
 		this.sendTime= DateUtil.nowDate();
+		if(DataUtil.isNotBlank(json.get("isRead"))){
+			this.isRead= json.getInt("isRead");
+		}
 	}
 
 	public void setId(Integer id){
