@@ -54,8 +54,7 @@ public class Application extends WebMvcConfigurationSupport {
         registry.addResourceHandler("/**")
                 .addResourceLocations("classpath:/resources/")
                 .addResourceLocations("classpath:/static/")
-                .addResourceLocations("classpath:/templates/")
-                .addResourceLocations("classpath:/upload/");
+                .addResourceLocations("classpath:/templates/");
         super.addResourceHandlers(registry);
     }
     /**

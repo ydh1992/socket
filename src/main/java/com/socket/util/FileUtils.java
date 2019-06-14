@@ -20,21 +20,20 @@ public class FileUtils {
 	public String uploadFileToService(MultipartFile file, int type) {
 		String contextPath = null;
 		try {
-			String serverpath= ResourceUtils.getURL("classpath:/resources/upload").getPath().replace("%20"," ").replace('/', '\\');
+			String serverpath= ResourceUtils.getURL("classpath:static").getPath().replace("%20"," ").replace('/', '\\');
 			//从路径字符串中取出工程路径
-			contextPath=serverpath.substring(1);
+			contextPath=serverpath.substring(1)+"upload/"+DateUtil.getCurrentTime(DateUtil.file_day_pattern);
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
-		String saveName= DateUtil.getCurrentTime(DateUtil.df_trade_no_prefix_pattern) + DataUtil.createNums(4);
-		String name = file.getOriginalFilename();
-		saveName = saveName+name.substring(name.lastIndexOf("."));
-		contextPath+=DateUtil.getCurrentTime(DateUtil.file_day_pattern);
 		if(type==1){
 			contextPath+="/img/";
 		}else{
 			contextPath+="/file/";
 		}
+		String saveName= DateUtil.getCurrentTime(DateUtil.df_trade_no_prefix_pattern) + DataUtil.createNums(4);
+		String name = file.getOriginalFilename();
+		saveName = saveName+name.substring(name.lastIndexOf("."));
 		File dirPath = new File(contextPath);
 		if (!dirPath.exists()) {
 			dirPath.mkdirs();
