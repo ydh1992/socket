@@ -23,7 +23,8 @@ public class LoginInterceptor extends HandlerInterceptorAdapter {
         }
         if(object==null){
             response.setContentType("application/json;charset=utf-8");
-            response.getWriter().print(Result.putValue(1, "请登录"));
+            response.getWriter().print(Result.putValue(1, "你还没有登录"));
+            return false;
         }
         return true;
     }
