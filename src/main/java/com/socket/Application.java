@@ -42,7 +42,7 @@ public class Application extends WebMvcConfigurationSupport {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(loginInterceptor()).addPathPatterns("/im/**")
                 .excludePathPatterns("/im/login").excludePathPatterns("/im/getKeyword")
-                .excludePathPatterns("/im/chat");
+                .excludePathPatterns("/im/chat").excludePathPatterns("/im/test");
         super.addInterceptors(registry);
     }
 

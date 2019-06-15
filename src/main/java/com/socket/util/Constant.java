@@ -11,7 +11,7 @@ public class Constant {
 	/**用户登录redis存储key   user_uuid_openid*/
 	public static final String REDIS_USER_KEY = "user_%s_%s";
 	/**用户头像*/
-	public static final String USER_AVATAR = "/layui/images/avatar/default.gif";
+	public static final String USER_AVATAR = "/layui/images/avatar/0.jpg";
 	/**若值为offline代表离线，online或者不填为在线*/
 	public static final String USER_OFFLINE = "offline";
 	/**online或者不填为在线*/

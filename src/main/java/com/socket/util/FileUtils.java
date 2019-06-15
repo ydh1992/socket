@@ -3,10 +3,11 @@ package com.socket.util;
 import net.sf.json.JSONArray;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ClassUtils;
 import org.springframework.util.FileCopyUtils;
-import org.springframework.util.ResourceUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 
 @Component
@@ -17,36 +18,28 @@ public class FileUtils {
 	/**
 	 * 图片上传(服务器)
 	 */
-	public String uploadFileToService(MultipartFile file, int type) {
-		String contextPath = null;
-		try {
-			String serverpath= ResourceUtils.getURL("classpath:static").getPath().replace("%20"," ").replace('/', '\\');
-			//从路径字符串中取出工程路径
-			contextPath=serverpath.substring(1)+"upload/"+DateUtil.getCurrentTime(DateUtil.file_day_pattern);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		if(type==1){
-			contextPath+="/img/";
-		}else{
-			contextPath+="/file/";
-		}
+	public String uploadFileToService(HttpServletRequest request,MultipartFile file, int type) {
+		String url=request.getContextPath();
+		String filePath = ClassUtils.getDefaultClassLoader().getResource("").getPath().substring(1);
+		filePath+="/static/upload/"+DateUtil.getCurrentTime(DateUtil.file_day_pattern)+(type==1?"/img/":"/file/");
+		url+="/upload/"+DateUtil.getCurrentTime(DateUtil.file_day_pattern)+(type==1?"/img/":"/file/");
 		String saveName= DateUtil.getCurrentTime(DateUtil.df_trade_no_prefix_pattern) + DataUtil.createNums(4);
 		String name = file.getOriginalFilename();
 		saveName = saveName+name.substring(name.lastIndexOf("."));
-		File dirPath = new File(contextPath);
+		File dirPath = new File(filePath);
 		if (!dirPath.exists()) {
 			dirPath.mkdirs();
 		}
 		// 创建文件
-		File uploadFile = new File(contextPath+saveName);
+		File uploadFile = new File(filePath+saveName);
 		OutputStream outputStream = null;
 		InputStream inputStream=null;
 		try {
 			outputStream = new FileOutputStream(uploadFile);
 			inputStream = file.getInputStream();
 			FileCopyUtils.copy(inputStream, outputStream);
-			return contextPath + saveName;
+			//处理返回连接
+			return url + saveName;
 		}catch(Exception e) {
 			e.printStackTrace();
 		}finally {

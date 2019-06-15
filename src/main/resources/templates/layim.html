@@ -27,15 +27,15 @@
                 async: true,
                 data: {"uuid":uuid},
                 success: function (msg) {
-                    var data=msg.data;
+                    var data=msg.data.list;
                     if (data != null && data.length > 0) {
                         for (var i = 0; i < data.length; i++) {
                             layim.getMessage({
-                                username: data[i].sendusername
-                                , avatar: data[i].avatar
-                                , id: data[i].senduser
+                                username: $.trim(data[i].name)== ''?data[i].names:data[i].name
+                                , avatar: msg.data.avatar
+                                , id: data[i].sendUserId
                                 , type: "friend"
-                                , content: data[i].content
+                                , content: data[i].context
                                 , timestamp: data[i].createdate
                             });
                         }
@@ -98,10 +98,10 @@
                     layer.msg("请输入要发送的消息!");
                     return;
                 }
-                if (getKeyword(message)) {
-                    layer.msg("你输入的有敏感字符！");
-                    return;
-                }
+                // if (getKeyword(message)) {
+                //     layer.msg("你输入的有敏感字符！");
+                //     return;
+                // }
                 if (socket.readyState == WebSocket.OPEN) {
                     //判断是发送好友消息还是群消息
                     if (To.type == "friend") {
@@ -156,28 +156,24 @@
             };
         });
         //判断发送数据是否包含特殊字符
-        function getKeyword(msg) {
-            $.ajaxSettings.async=false;
-            var check=false;
-            $.getJSON('/keyword.json', function (json) {
-                if (json != null && json.length > 0) {
-                    for(var i=0;i<json.length;i++){
-                        // var n = msg.search(json[i]);
-                        if (msg==json[i]) {
-                            //过滤关键字
-                            check=true;
-                            return;
-                        }
-                    }
-                }
-            });
-            $.ajaxSettings.async=true;
-            return check;
-        }
-        //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
-        window.onbeforeunload = function () {
-            socket.close();
-        }
+        // function getKeyword(msg) {
+        //     $.ajaxSettings.async=false;
+        //     var check=false;
+        //     $.getJSON('/keyword.json', function (json) {
+        //         if (json != null && json.length > 0) {
+        //             for(var i=0;i<json.length;i++){
+        //                 // var n = msg.search(json[i]);
+        //                 if (msg==json[i]) {
+        //                     //过滤关键字
+        //                     check=true;
+        //                     return;
+        //                 }
+        //             }
+        //         }
+        //     });
+        //     $.ajaxSettings.async=true;
+        //     return check;
+        // }
     });
 </script>
 </body>

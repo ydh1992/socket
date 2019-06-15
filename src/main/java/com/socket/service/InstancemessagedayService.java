@@ -2,7 +2,6 @@ package com.socket.service;
 
 import com.socket.mapper.InstancemessagedayMapper;
 import com.socket.pojo.Instancemessageday;
-import com.socket.util.Constant;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,17 +30,14 @@ public class InstancemessagedayService {
 	}
 
 
-	public List<Map<String, Object>> getOfflineMessageList(String recUserId, int type) {
-		List<Map<String, Object>> list=instancemessagedayMapper.getOfflineMessageList(recUserId, type);
+	public List<Map<String, Object>> getOfflineMessageList(String recUserId) {
+		List<Map<String, Object>> list=instancemessagedayMapper.getOfflineMessageList(recUserId);
 		if(list!=null&&list.size()>0){
-			list.forEach(e->{
-				e.put("avatar", Constant.USER_AVATAR);
-			});
 			//更新状态为已读状态
 			instancemessagedayMapper.updatemsgstate(recUserId);
 			return list;
 		}
-		return null;
+		return list;
 	}
 
 	@Transactional

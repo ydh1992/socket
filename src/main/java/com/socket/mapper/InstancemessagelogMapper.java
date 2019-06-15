@@ -10,5 +10,5 @@ public interface InstancemessagelogMapper {
 
 	List<Map<String, Object>> selectLogList(@Param("param")Map<String, Object> param);
 
-	int countLog(Map<String, Object> param);
+	int countLog(@Param("param")Map<String, Object> param);
 }

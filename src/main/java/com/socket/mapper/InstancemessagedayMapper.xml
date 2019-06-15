@@ -54,15 +54,11 @@
 
 	<select id="getOfflineMessageList" resultType="java.util.Map" >
 		SELECT
-		a.id,
-		a.sendUserId senduser,
-		b.name sendusername ,
-		a.context,
-		FROM_UNIXTIME(a.sendTime, '%Y-%c-%d %h:%i:%s' ) createdate
+		a.id,a.sendUserId,b.name,c.name names,a.context,DATE_FORMAT(a.sendTime, '%Y-%c-%d %H:%i:%s' )
 		FROM  instancemessageday  a
-		<if test="types == 0">LEFT JOIN auth_user b ON b.uuid=a.sendUserId</if>
-		<if test="types == 1">LEFT JOIN auth_org b ON b.uuid=a.sendUserId</if>
-		WHERE a.recUserId =#{recUserId}  and  a.isRead=0   ORDER BY a.id
+		LEFT JOIN auth_user b ON b.uuid=a.sendUserId
+		LEFT JOIN auth_org c ON c.uuid=a.sendUserId
+		WHERE a.recUserId =#{_parameter,jdbcType=VARCHAR}  and  a.isRead=0   ORDER BY a.id
 	</select>
 
 	<!-- 批量保存-->

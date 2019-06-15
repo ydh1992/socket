@@ -9,14 +9,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
-import org.springframework.util.ResourceUtils;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.yeauty.pojo.Session;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import java.io.FileNotFoundException;
 import java.util.List;
 import java.util.Map;
 
@@ -115,8 +114,8 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/imgUpload", method = RequestMethod.POST)
 	@ResponseBody
-	public Object uploadImgFile(@RequestParam MultipartFile file){
-		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(file,1)));
+	public Object uploadImgFile(@RequestParam MultipartFile file,HttpServletRequest request){
+		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(request,file,1)));
 	}
 	
 	/** 
@@ -124,8 +123,8 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/fileUpload",method = RequestMethod.POST)
 	@ResponseBody
-	public Object uploadAllFile(@RequestParam MultipartFile file){
-		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(file,2)));
+	public Object uploadAllFile(@RequestParam MultipartFile file,HttpServletRequest request){
+		return  Result.putValue(DataUtil.mapOf("src",fileUtils.uploadFileToService(request,file,2)));
 	}
 
 	/**
@@ -134,10 +133,9 @@ public class ImController{
 	@RequestMapping(value = "/getOfflineMsg")
 	@ResponseBody
 	public Object userMessageCount(HttpServletRequest request,@RequestParam String uuid){
-		Map<String,Object> map= (Map<String, Object>) request.getSession().getAttribute(uuid);
-		List<Map<String, Object>> list=instancemessagedayService.getOfflineMessageList(uuid,Integer.valueOf(map.get("type").toString()));
+		List<Map<String, Object>> list=instancemessagedayService.getOfflineMessageList(uuid);
 		if(list!=null){
-			return Result.putValue(JSONArray.fromObject(list));
+			return Result.putValue(DataUtil.mapOf("list",JSONArray.fromObject(list),"avatar", Constant.USER_AVATAR));
 		}
 		return Result.putValue();
 	}
@@ -157,19 +155,19 @@ public class ImController{
 	 */
 	@RequestMapping(value = "/chatLogs",method = RequestMethod.POST)
 	@ResponseBody
-	public Object chatlog(HttpServletRequest request,@RequestParam(defaultValue = "0")Integer page,String id,HttpSession session){
+	public Object chatlog(Integer page,Integer limit,String id,HttpSession session){
 		if(!DataUtil.isNotBlank(id)){
 			return Result.putValue(1,"缺少参数");
 		}
-		Map<String,Object> user= (Map<String, Object>) request.getSession().getAttribute(session.getAttribute("uuid").toString());
-		Map<String,Object> map =DataUtil.mapOf("offset",page>0?page*Constant.PAGE_SIZE:0,"limit",Constant.PAGE_SIZE,
+		Map<String,Object> map =DataUtil.mapOf("offset",page>0?(page-1)*limit:0,"limit",limit,
 				"sendUserId",session.getAttribute("uuid"),"recUserId", Long.parseLong(id));
 		//查询好友名称
 		Map<String,Object> name=authOrgService.selectUser(id);
 		if(name==null){
 			name=authUserService.selectUser(id);
 		}
-		return Result.putValue(DataUtil.mapOf("list",instancemessagelogService.selectLogList(map),"recName",name!=null?name.get("username"):null));
+		return Result.putValue(DataUtil.mapOf("list",instancemessagelogService.selectLogList(map),"recName",name!=null?name.get("username"):null
+				,"avatar", Constant.USER_AVATAR));
 	}
 
 	/**
@@ -178,17 +176,9 @@ public class ImController{
 	@RequestMapping(value = "/getKeyword")
 	@ResponseBody
 	public Object getKeyword(){
-		String contextPath = null;
-		try {
-			String serverpath= ResourceUtils.getURL("classpath:templates").getPath().replace("%20"," ").replace('/', '\\');
-			//从路径字符串中取出工程路径
-			contextPath=serverpath.substring(1);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		if(contextPath!=null){
-			fileUtils.createJsonFile(JSONArray.fromObject(codeService.getKeyword()),contextPath,"keyword");
-		}
+		//从路径字符串中取出工程路径
+		String contextPath = ClassUtils.getDefaultClassLoader().getResource("templates").getPath().substring(1);
+		fileUtils.createJsonFile(JSONArray.fromObject(codeService.getKeyword()),contextPath,"keyword");
 		return Result.putValue();
 	}
 
