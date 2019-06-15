@@ -18,4 +18,6 @@ public interface InstancemessagedayMapper {
 	int updatemsgstate(String recUserId);
 
 	List<Map<String,Object>>  getOfflineMessageList(String recUserId);
+
+	void delete();
 }

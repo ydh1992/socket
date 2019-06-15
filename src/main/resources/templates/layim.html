@@ -54,6 +54,14 @@
             socket.onerror = function () {
                 socket = new WebSocket(url);
             };
+            //连接关闭
+            socket.onclose = function(event) {
+                layim.setFriendStatus(uuid, 'offline');
+                layer.confirm('您已下线，重新上线?', function(index){
+                    socket = new WebSocket(url);
+                    layer.close(index);
+                });
+            };
             //连接成功建立的回调方法
             socket.onopen = function () {
                 // socket.send(onopen(uuid,groupId,returnCitySN.cip));

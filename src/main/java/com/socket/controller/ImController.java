@@ -205,9 +205,9 @@ public class ImController{
 	 *单聊
 	 */
 	@RequestMapping(value = "/chat")
-	public String chat(@RequestParam String suuid, @RequestParam String ruuid,@RequestParam Integer ownerOrCompany,ModelMap model){
-		if(DataUtil.isNotBlank(suuid,ruuid,ownerOrCompany)){
-			model.put("uuid",suuid);
+	public String chat(@RequestParam String uuid, @RequestParam String ruuid,@RequestParam Integer ownerOrCompany,ModelMap model){
+		if(DataUtil.isNotBlank(uuid,ruuid,ownerOrCompany)){
+			model.put("uuid",uuid);
 			//标识符  0-个人，1-企业，2-管理员
 			Map<String,Object> map=null;
 			if(ownerOrCompany.equals(Constant.PERSONAL_TYPE)){

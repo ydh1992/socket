@@ -45,4 +45,8 @@ public class InstancemessagedayService {
 		instancemessagedayMapper.insertList(entity);
 	}
 
+	public void delete(){
+		instancemessagedayMapper.delete();
+	}
+
 }

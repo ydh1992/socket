@@ -68,4 +68,10 @@
 			(#{emp.sendUserId},#{emp.recUserId},#{emp.context},#{emp.sendTime},#{emp.isRead},#{emp.msgType})
 		</foreach>
 	</insert>
+
+	<delete id="delete">
+        DELETE FROM instancemessageday where isRead=1 and DATE_FORMAT(sendTime, '%Y-%c-%d' )=DATE_FORMAT(now(), '%Y-%c-%d' )
+	</delete>
+
+
 </mapper>
